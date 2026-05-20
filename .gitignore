@@ -1,0 +1,20 @@
+# Arquivos de ambiente locais e segredos
+.env
+.env.local
+*.env
+*.pem
+*.key
+
+# Pastas locais de cache do Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Arquivos do sistema operacional
+Thumbs.db
+.DS_Store
+
+# Pastas de dependências de código (caso use futuramente)
+node_modules/
+__pycache__/
