@@ -8,7 +8,7 @@ on:
 env:
   AZURE_RESOURCE_GROUP: "rg-lab-cicd-v2"
   AZURE_CLUSTER_NAME: "aks-lab-cicd-v2"
-  KEY_VAULT_NAME: "kv-lab-cicd-v2-2026" # Deve bater com o default do variables.tf
+  KEY_VAULT_NAME: "kv-lab-cicd-v2-2026"
   TF_STATE_RG: "rg-terraform-state"
   TF_STATE_STORAGE: "stftstateactions2026" 
   TF_STATE_CONTAINER: "tfstate"
@@ -62,7 +62,7 @@ jobs:
       working-directory: ./terraform2
 
   # ==========================================
-  # JOB 2: BUILD E SEGURANÇA (KEY VAULT + TRIVY)
+  # JOB 2: BUILD E SEGURANÇA (AUTENTICAÇÃO DIRETA CLI)
   # ==========================================
   build-and-security:
     name: Build Docker & Scan com Trivy
@@ -78,13 +78,13 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    # CAPTURA DE SEGREDOS: Puxa a senha do ACR direto do Key Vault criado no Job 1
-    - name: Baixar Segredos do Azure Key Vault
-      uses: azure/get-keyvault-secrets@v1
-      with:
-        keyvault: ${{ env.KEY_VAULT_NAME }}
-        secrets: 'acr-admin-password'
-      id: kv-secrets
+    # ABORDAGEM INFALÍVEL: Extrai o segredo via CLI nativa usando o login do passo anterior
+    - name: Coletar Senha do ACR via Azure CLI
+      id: get-secret
+      run: |
+        ACR_PASS=$(az keyvault secret show --vault-name ${{ env.KEY_VAULT_NAME }} --name acr-admin-password --query value -o tsv)
+        echo "::add-mask::$ACR_PASS" # Blindagem: Mascara o segredo nos logs do GitHub
+        echo "acr_password=$ACR_PASS" >> $GITHUB_OUTPUT
 
     - name: Configurar Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -108,13 +108,13 @@ jobs:
         vuln-type: 'os,library'
         severity: 'CRITICAL'
 
-    # Autenticação usando a senha extraída do cofre seguro em tempo de execução
+    # Autenticação usando a variável injetada de forma segura pelo passo da CLI
     - name: Login no Azure Container Registry (ACR)
       uses: azure/docker-login@v2
       with:
         login-server: ${{ needs.infra-provisioning.outputs.acr_server }}
         username: ${{ needs.infra-provisioning.outputs.acr_username }}
-        password: ${{ steps.kv-secrets.outputs.acr-admin-password }}
+        password: ${{ steps.get-secret.outputs.acr_password }}
 
     - name: Tag e Push da imagem para o ACR
       run: |
