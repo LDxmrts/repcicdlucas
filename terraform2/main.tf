@@ -19,6 +19,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   resource_group_name = azurerm_resource_group.rg.name
   dns_prefix          = "aks-v2"
 
+
   default_node_pool {
     name       = "default"
     node_count = 1
