@@ -185,4 +185,3 @@ jobs:
     - name: Validar Rollout do Deployment
       run: |
         kubectl rollout status deployment/nginx-app-v2 --timeout=90s
-    
