@@ -59,12 +59,13 @@ resource "azurerm_key_vault" "kv" {
       "Get", "List", "Set", "Delete", "Purge", "Recover"
     ]
   }
-}
 
-resource "azurerm_key_vault_secret" "acr_password" {
-  name         = "acr-admin-password"
-  value        = azurerm_container_registry.acr.admin_password
-  key_vault_id = azurerm_key_vault.kv.id
+  access_policy {
+    tenant_id = data.azurerm_client_config.current.tenant_id
+    object_id = "5720ab0c-3570-484b-9fed-3d4bcac9ecbf" 
 
-  depends_on = [azurerm_key_vault.kv]
+    secret_permissions = [
+      "Get", "List", "Set", "Delete", "Purge", "Recover"
+    ]
+  }
 }
