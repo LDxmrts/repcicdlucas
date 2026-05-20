@@ -1,3 +1,5 @@
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "rg" {
     name = var.resource_group_name
     location = var.location
@@ -5,7 +7,7 @@ resource "azurerm_resource_group" "rg" {
 
 resource "azurerm_container_registry" "acr" {
     name = var.acr_name
-    resource_group_name = var.resource_group_name.name
+    resource_group_name = var.resource_group.rg.name
     location = azurerm_resource_group.rg.location
     sku = "Standard"
     admin_enabled = true
@@ -48,7 +50,6 @@ resource "azurerm_key_vault" "kv" {
   purge_protection_enabled    = false
   sku_name                    = "standard"
 
-  # Política de Acesso para permitir que o Service Principal do GitHub crie e leia segredos
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = data.azurerm_client_config.current.object_id
