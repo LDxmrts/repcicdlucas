@@ -51,24 +51,21 @@ resource "azurerm_key_vault" "kv" {
   purge_protection_enabled    = false
   sku_name                    = "standard"
 
-  enable_rbac_authorization   = false
 
- 
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = data.azurerm_client_config.current.object_id
-
-    secret_permissions = [
-      "Get", "List", "Set", "Delete", "Purge", "Recover"
-    ]
-  }
-
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = "5720ab0c-3570-484b-9fed-3d4bcac9ecbf" 
-
-    secret_permissions = [
-      "Get", "List", "Set", "Delete", "Purge", "Recover"
-    ]
-  }
+  enable_rbac_authorization   = true 
 }
+
+resource "azurerm_role_assignment" "tf_kv_secrets" {
+  scope                = azurerm_key_vault.kv.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+resource "azurerm_key_vault_secret" "acr_password" {
+  name         = "acr-admin-password"
+  value        = azurerm_container_registry.acr.admin_password
+  key_vault_id = azurerm_key_vault.kv.id
+  depends_on = [azurerm_role_assignment.tf_kv_secrets]
+}
+ 
+
