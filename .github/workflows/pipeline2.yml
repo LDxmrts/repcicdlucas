@@ -1,16 +1,19 @@
-name: CI/CD Pipeline - Terraform & Deploy
+name: Advanced CI/CD v2 - Key Vault Integration
 
 on:
-  workflow_dispatch
+  push:
+    branches:
+      - main
 
 env:
-  AZURE_RESOURCE_GROUP: "rg-lab-cicd"          # Definido no seu variáveis.tf do Terraform
-  AZURE_CLUSTER_NAME: "aks-lab-cicd"            # Definido no seu variáveis.tf do Terraform
+  AZURE_RESOURCE_GROUP: "rg-lab-cicd-v2"
+  AZURE_CLUSTER_NAME: "aks-lab-cicd-v2"
+  KEY_VAULT_NAME: "kv-lab-cicd-v2-2026" # Deve bater com o default do variables.tf
   TF_STATE_RG: "rg-terraform-state"
   TF_STATE_STORAGE: "stftstateactions2026" 
   TF_STATE_CONTAINER: "tfstate"
-  TF_STATE_KEY: "terraform.tfstate"
-  IMAGE_NAME: "nginx-custom"
+  TF_STATE_KEY: "terraform2.tfstate"
+  IMAGE_NAME: "nginx-custom-v2"
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
@@ -18,12 +21,11 @@ jobs:
   # JOB 1: PROVISIONAMENTO DA INFRAESTRUTURA
   # ==========================================
   infra-provisioning:
-    name: Provisionamento com Terraform
+    name: Provisionamento com Terraform v2
     runs-on: ubuntu-latest
     outputs:
       acr_server: ${{ steps.tf-outputs.outputs.acr_server }}
       acr_username: ${{ steps.tf-outputs.outputs.acr_username }}
-      acr_password: ${{ steps.tf-outputs.outputs.acr_password }}
 
     steps:
     - name: Checkout do código
@@ -46,26 +48,21 @@ jobs:
           -backend-config="storage_account_name=${{ env.TF_STATE_STORAGE }}" \
           -backend-config="container_name=${{ env.TF_STATE_CONTAINER }}" \
           -backend-config="key=${{ env.TF_STATE_KEY }}"
-      working-directory: ./terraform
-
-    - name: Terraform Plan
-      run: terraform plan -input=false
-      working-directory: ./terraform
+      working-directory: ./terraform2
 
     - name: Terraform Apply
       run: terraform apply -auto-approve -input=false
-      working-directory: ./terraform
+      working-directory: ./terraform2
 
-    - name: Exportar Outputs para o Pipeline
+    - name: Exportar Outputs Públicos
       id: tf-outputs
       run: |
         echo "acr_server=$(terraform output -raw acr_server)" >> $GITHUB_OUTPUT
         echo "acr_username=$(terraform output -raw acr_username)" >> $GITHUB_OUTPUT
-        echo "acr_password=$(terraform output -raw acr_password)" >> $GITHUB_OUTPUT
-      working-directory: ./terraform
+      working-directory: ./terraform2
 
   # ==========================================
-  # JOB 2: CONSTRUÇÃO DA IMAGEM E ANÁLISE DE SEGURANÇA
+  # JOB 2: BUILD E SEGURANÇA (KEY VAULT + TRIVY)
   # ==========================================
   build-and-security:
     name: Build Docker & Scan com Trivy
@@ -76,13 +73,26 @@ jobs:
     - name: Checkout do código
       uses: actions/checkout@v4
 
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # CAPTURA DE SEGREDOS: Puxa a senha do ACR direto do Key Vault criado no Job 1
+    - name: Baixar Segredos do Azure Key Vault
+      uses: azure/get-keyvault-secrets@v1
+      with:
+        keyvault: ${{ env.KEY_VAULT_NAME }}
+        secrets: 'acr-admin-password'
+      id: kv-secrets
+
     - name: Configurar Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Gerar Dockerfile base (Nginx)
+    - name: Gerar Dockerfile base (Nginx v2)
       run: |
         echo "FROM nginx:alpine" > Dockerfile
-        echo "RUN echo '<h1>Infraestrutura e Seguranca integradas com Sucesso!</h1>' > /usr/share/nginx/html/index.html" >> Dockerfile
+        echo "RUN echo '<h1>Lab 2: Arquitetura Enterprise com Key Vault e Trivy concluida!</h1>' > /usr/share/nginx/html/index.html" >> Dockerfile
 
     - name: Build local da imagem
       run: |
@@ -98,12 +108,13 @@ jobs:
         vuln-type: 'os,library'
         severity: 'CRITICAL'
 
+    # Autenticação usando a senha extraída do cofre seguro em tempo de execução
     - name: Login no Azure Container Registry (ACR)
       uses: azure/docker-login@v2
       with:
         login-server: ${{ needs.infra-provisioning.outputs.acr_server }}
         username: ${{ needs.infra-provisioning.outputs.acr_username }}
-        password: ${{ needs.infra-provisioning.outputs.acr_password }}
+        password: ${{ steps.kv-secrets.outputs.acr-admin-password }}
 
     - name: Tag e Push da imagem para o ACR
       run: |
@@ -114,46 +125,43 @@ jobs:
   # JOB 3: DEPLOY NO KUBERNETES (AKS)
   # ==========================================
   deploy-to-aks:
-    name: Deploy no Azure AKS
+    name: Deploy no Azure AKS v2
     runs-on: ubuntu-latest
-    needs: [infra-provisioning, build-and-security] # Aguarda a infra e a imagem estarem prontas
+    needs: [infra-provisioning, build-and-security]
     
     steps:
     - name: Checkout do código
       uses: actions/checkout@v4
 
-    # Autenticação na Azure para obter acesso ao cluster
     - name: Azure Login
       uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    # Baixa o kubeconfig do AKS para que o runner consiga usar o kubectl
     - name: Configurar contexto do AKS
       uses: azure/aks-set-context@v4
       with:
         resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
         cluster-name: ${{ env.AZURE_CLUSTER_NAME }}
 
-    # Aplica o Manifesto do Kubernetes injetando a imagem do ACR gerada no Job anterior
     - name: Implantar Manifestos no Cluster
       run: |
         cat <<EOF | kubectl apply -f -
         apiVersion: apps/v1
         kind: Deployment
         metadata:
-          name: nginx-app
+          name: nginx-app-v2
           labels:
-            app: nginx
+            app: nginx-v2
         spec:
           replicas: 2
           selector:
             matchLabels:
-              app: nginx
+              app: nginx-v2
           template:
             metadata:
               labels:
-                app: nginx
+                app: nginx-v2
             spec:
               containers:
               - name: nginx-container
@@ -164,17 +172,16 @@ jobs:
         apiVersion: v1
         kind: Service
         metadata:
-          name: nginx-service
+          name: nginx-service-v2
         spec:
           type: LoadBalancer
           ports:
           - port: 80
             targetPort: 80
           selector:
-            app: nginx
+            app: nginx-v2
         EOF
 
-    # Garante que o pod estabilizou e subiu com sucesso antes de dar o deploy como concluído
     - name: Validar Rollout do Deployment
       run: |
-        kubectl rollout status deployment/nginx-app --timeout=90s
+        kubectl rollout status deployment/nginx-app-v2 --timeout=90s
