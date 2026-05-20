@@ -27,6 +27,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
   identity {
     type = "SystemAssigned"
   }
+
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+  
 }
 
 # 4. Atribuição de Role (IAM) - Permite que o AKS faça pull de imagens do ACR nativamente
