@@ -9,7 +9,7 @@ terraform {
   
   backend "azurerm" {
     resource_group_name  = "rg-terraform-backend"
-    storage_account_name = "stbackendlz2026"
+    storage_account_name = "stbackendlz001"
     container_name       = "tfstate"
     key                  = "landingzone.dev.tfstate"
     use_oidc             = true
