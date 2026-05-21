@@ -1,7 +1,5 @@
-# 1. Configurações Globais / Contexto Atual
 data "azurerm_client_config" "current" {}
 
-# 2. Criação do Resource Group (O bloco que estava faltando na pasta!)
 resource "azurerm_resource_group" "lz_rg" {
   name     = var.resource_group_name
   location = var.location
@@ -11,7 +9,6 @@ resource "azurerm_resource_group" "lz_rg" {
   }
 }
 
-# 3. Definição da Azure Policy Personalizada
 resource "azurerm_policy_definition" "vm_sku_restriction" {
   name         = "policy-restringir-sku-vm"
   policy_type  = "Custom"
@@ -40,7 +37,6 @@ resource "azurerm_policy_definition" "vm_sku_restriction" {
   })
 }
 
-# 4. Atribuição da Política de SKU
 resource "azurerm_resource_group_policy_assignment" "assign_vm_sku" {
   name                 = "asg-policy-sku-vm"
   resource_group_id    = azurerm_resource_group.lz_rg.id
@@ -48,7 +44,7 @@ resource "azurerm_resource_group_policy_assignment" "assign_vm_sku" {
   display_name         = "Bloqueio de SKUs caras de VM"
 }
 
-# 5. Atribuição da Política Nativa de Regiões
+
 resource "azurerm_resource_group_policy_assignment" "assign_allowed_locations" {
   name                 = "asg-policy-locations"
   resource_group_id    = azurerm_resource_group.lz_rg.id
@@ -62,7 +58,7 @@ resource "azurerm_resource_group_policy_assignment" "assign_allowed_locations" {
   })
 }
 
-# 6. Provisionamento da Rede Virtual (Sintaxe Corrigida v4.x)
+
 resource "azurerm_virtual_network" "lz_vnet" {
   name                = "vnet-landingzone-dev"
   address_space       = ["10.10.0.0/16"]
@@ -86,7 +82,7 @@ resource "azurerm_virtual_network" "lz_vnet" {
   ]
 }
 
-# 7. Provisionamento do Azure Key Vault
+
 resource "azurerm_key_vault" "lz_kv" {
   name                        = var.key_vault_name
   location                    = azurerm_resource_group.lz_rg.location
@@ -112,7 +108,7 @@ resource "azurerm_key_vault" "lz_kv" {
   }
 }
 
-# 8. Permissão RBAC para o Key Vault
+
 resource "azurerm_role_assignment" "kv_admin" {
   scope                = azurerm_key_vault.lz_kv.id
   role_definition_name = "Key Vault Administrator"

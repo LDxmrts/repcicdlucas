@@ -4,6 +4,7 @@
 *.env
 *.pem
 *.key
+*.tfvars
 
 # Pastas locais de cache do Terraform
 .terraform/
