@@ -10,7 +10,7 @@ variable "location" {
 
 variable "environment" {
   type        = string
-  description = "Tag de ambiente (ex: Dev, Homolog)"
+  description = "Tag de ambiente"
 }
 
 variable "allowed_locations" {
