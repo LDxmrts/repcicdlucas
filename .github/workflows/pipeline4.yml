@@ -42,15 +42,18 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+        working-directory: ./terraform4
 
       # Valida se a sintaxe do código está correta (evita erros de digitação)
       - name: Terraform Validate
         run: terraform validate
+        working-directory: ./terraform4
 
       # Gera o plano de execução simulado
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color
+        working-directory: ./terraform4
 
   terraform-cd:
     name: "Terraform Apply (CD)"
