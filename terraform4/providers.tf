@@ -9,9 +9,10 @@ terraform {
   
   backend "azurerm" {
     resource_group_name  = "rg-terraform-backend"
-    storage_account_name = "stbackendlz001"
+    storage_account_name = "stbackendlz2026"
     container_name       = "tfstate"
     key                  = "landingzone.dev.tfstate"
+    use_oidc             = true
   }
 }
 
@@ -22,4 +23,5 @@ provider "azurerm" {
       recover_soft_deleted_key_vaults = true
     }
   }
+  use_oidc = true
 }
